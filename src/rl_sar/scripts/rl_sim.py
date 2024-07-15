@@ -93,10 +93,16 @@ class RL_Sim(RL):
         print(LOGGER.INFO + "RL_Sim exit")
 
     def GetState(self, state):
-        state.imu.quaternion[3] = self.pose.orientation.w
-        state.imu.quaternion[0] = self.pose.orientation.x
-        state.imu.quaternion[1] = self.pose.orientation.y
-        state.imu.quaternion[2] = self.pose.orientation.z
+        if self.params.framework == "isaacgym":
+            state.imu.quaternion[3] = self.pose.orientation.w
+            state.imu.quaternion[0] = self.pose.orientation.x
+            state.imu.quaternion[1] = self.pose.orientation.y
+            state.imu.quaternion[2] = self.pose.orientation.z
+        elif self.params.framework == "isaacsim":
+            state.imu.quaternion[0] = self.pose.orientation.w
+            state.imu.quaternion[1] = self.pose.orientation.x
+            state.imu.quaternion[2] = self.pose.orientation.y
+            state.imu.quaternion[3] = self.pose.orientation.z
 
         state.imu.gyroscope[0] = self.vel.angular.x
         state.imu.gyroscope[1] = self.vel.angular.y

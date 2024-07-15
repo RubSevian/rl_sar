@@ -70,6 +70,7 @@ struct Control
 struct ModelParams
 {
     std::string model_name;
+    std::string framework;
     double dt;
     int decimation;
     int num_observations;
