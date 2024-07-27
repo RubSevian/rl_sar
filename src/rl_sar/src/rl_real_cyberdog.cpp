@@ -5,10 +5,11 @@
 
 RL_Real rl_sar;
 
-RL_Real::RL_Real() : CustomInterface(500)
+RL_Real::RL_Real() : CustomInterface(500.0)
 {
+    torch::autograd::GradMode::set_enabled(false);
     // read params from yaml
-    this->robot_name = "cyberdog"; //"Cyberdog";
+    this->robot_name = "a1"; //"Cyberdog";
     this->ReadYaml(this->robot_name);
 
     // history
@@ -32,6 +33,7 @@ RL_Real::RL_Real() : CustomInterface(500)
 
     this->loop_control->start();
     //this->loop_rl->start();
+    //this->loop_rl->start();
     
 
 #ifdef PLOT
@@ -43,7 +45,6 @@ RL_Real::RL_Real() : CustomInterface(500)
     this->loop_plot    = std::make_shared<LoopFunc>("loop_plot"   , 0.002,    std::bind(&RL_Real::Plot,         this));
     this->loop_plot->start();
 #endif
-   // _keyboardThread = std::thread(&RL_Real::KeyboardInterface, this);
 
 #ifdef CSV_LOGGER
     this->CSVInit(this->robot_name);
@@ -59,6 +60,9 @@ RL_Real::~RL_Real()
 #endif
     std::cout << LOGGER::INFO << "RL_Real exit" << std::endl;
 }
+
+void RL::KeyboardInterface(){}
+
 
 void RL_Real::GetState(RobotState<double> *state)
 {
@@ -330,6 +334,9 @@ void RL_Real::Plot()
 
 void signalHandler(int signum)
 {
+    system("ssh root@192.168.55.233 \"ps | grep -E 'manager|ctrl|imu_online' | grep -v grep | awk '{print \\$1}' | xargs kill -9\"");
+    system("ssh root@192.168.55.233 \"export LD_LIBRARY_PATH=/mnt/UDISK/robot-software/build;/mnt/UDISK/manager /mnt/UDISK/ >> /mnt/UDISK/manager_log/manager.log 2>&1 &\"");
+
     exit(0);
 }
 

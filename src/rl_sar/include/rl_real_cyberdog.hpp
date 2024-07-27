@@ -17,7 +17,7 @@ using CyberdogData = Robot_Data;
 using CyberdogCmd = Motor_Cmd;
 
 
-class RL_Real : public RL,  CustomInterface
+class RL_Real : public RL,CustomInterface
 {
 public:
     RL_Real();
@@ -37,7 +37,7 @@ private:
     CyberdogData cyberdogData;
 	CyberdogCmd cyberdogCmd;
     void UserCode();
-	long long count = 0;
+	
     // loop
     
     std::shared_ptr<LoopFunc> loop_control;
@@ -63,7 +63,7 @@ private:
     //keyboard
     Control1 control;
     void KeyboardInterface();
-    // std::thread _keyboardThread;
+    
 
     // others
     int motiontime = 0;
