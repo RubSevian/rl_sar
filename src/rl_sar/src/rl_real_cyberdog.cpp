@@ -67,11 +67,11 @@ void RL::KeyboardInterface(){}
 void RL_Real::GetState(RobotState<double> *state)
 {
 
-    std::cout << "control_state" << control.control_state
-              << " x" << control.x << " y" << control.y << " yaw" << control.yaw
-              << "\r";
+   // std::cout << "control_state" << control.control_state
+   //           << " x" << control.x << " y" << control.y << " yaw" << control.yaw
+   //           << "\r";
 
-    motiontime++;
+    // motiontime++;
 
     
     // waiting
