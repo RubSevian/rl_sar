@@ -39,7 +39,7 @@ private:
     void UserCode();
 	
     // loop
-    
+    std::shared_ptr<LoopFunc> loop_keyboard;    
     std::shared_ptr<LoopFunc> loop_control;
     std::shared_ptr<LoopFunc> loop_rl;
     std::shared_ptr<LoopFunc> loop_plot;
@@ -62,7 +62,6 @@ private:
     // unitree interface
     //keyboard
     Control1 control;
-    void KeyboardInterface();
     
 
     // others

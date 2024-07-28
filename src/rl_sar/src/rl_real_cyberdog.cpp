@@ -28,11 +28,11 @@ RL_Real::RL_Real() : CustomInterface(500.0)
     this->model = torch::jit::load(model_path);
 
     // loop
-    this->loop_control  = std::make_shared<LoopFunc>("loop_control",0.002, std::bind(&RL_Real::RobotControl, this));
-    this->loop_rl = std::make_shared<LoopFunc>("loop_rl",0.02, std::bind(&RL_Real::RunModel, this));
-
+    this->loop_keyboard = std::make_shared<LoopFunc>("loop_keyboard", 0.05, std::bind(&RL_Real::KeyboardInterface, this));
+    this->loop_control  = std::make_shared<LoopFunc>("loop_control", 0.002, std::bind(&RL_Real::RobotControl, this));
+    this->loop_rl = std::make_shared<LoopFunc>("loop_rl", 0.02, std::bind(&RL_Real::RunModel, this));
+    this->loop_keyboard->start();
     this->loop_control->start();
-    //this->loop_rl->start();
     //this->loop_rl->start();
     
 
@@ -53,143 +53,21 @@ RL_Real::RL_Real() : CustomInterface(500.0)
 
 RL_Real::~RL_Real()
 {
-    loop_control->shutdown();
-    loop_rl->shutdown();
+    this->loop_keyboard->shutdown();
+    this->loop_control->shutdown();
+    this->loop_rl->shutdown();
 #ifdef PLOT
     this->loop_plot->shutdown();
 #endif
     std::cout << LOGGER::INFO << "RL_Real exit" << std::endl;
 }
 
-void RL::KeyboardInterface(){}
+//void RL::KeyboardInterface(){}
 
 
 void RL_Real::GetState(RobotState<double> *state)
 {
 
-   // std::cout << "control_state" << control.control_state
-   //           << " x" << control.x << " y" << control.y << " yaw" << control.yaw
-   //           << "\r";
-
-    // motiontime++;
-
-    
-    // waiting
-    if(control.control_state  == STATE_WAITING)
-    {
-        for(int i = 0; i < params.num_of_dofs; ++i)
-        {
-            cyberdogCmd.q_des[i] = cyberdogData.q[i];
-        }
-        if(control.control_state == STATE_POS_GETUP)
-        {
-            control.control_state = STATE_WAITING;
-            getup_percent = 0.0;
-            for(int i = 0; i < params.num_of_dofs; ++i)
-            {
-                now_pos[i] = cyberdogData.q[i];
-                start_pos[i] = now_pos[i];
-            }
-            control.control_state  = STATE_POS_GETUP;
-        }
-    }
-    // stand up (position control)
-    else if(control.control_state  == STATE_POS_GETUP)
-    {
-        if(getup_percent != 1)
-        {
-            getup_percent += 1 / 1000.0;
-            getup_percent = getup_percent > 1 ? 1 : getup_percent;
-            for(int i = 0; i < params.num_of_dofs; ++i)
-            {
-                cyberdogCmd.q_des[i] = (1 - getup_percent) * now_pos[i] + getup_percent * params.default_dof_pos[0][command_mapping[i]].item<double>();
-                cyberdogCmd.qd_des[i] = 0;
-                cyberdogCmd.kp_des[i] = 200;
-                cyberdogCmd.kd_des[i] = 10;
-                cyberdogCmd.tau_des[i] = 0;
-            }
-            printf("getting up %.3f%%\r", getup_percent*100.0);
-        }
-        if(control.control_state == STATE_RL_INIT)
-        {
-            control.control_state = STATE_WAITING;
-            control.control_state  = STATE_RL_INIT;
-        }
-        else if(control.control_state == STATE_POS_GETDOWN)
-        {
-            control.control_state = STATE_WAITING;
-            getdown_percent = 0.0;
-            for(int i = 0; i < params.num_of_dofs; ++i)
-            {
-                now_pos[i] = cyberdogData.q[i];
-            }
-            control.control_state  = STATE_POS_GETDOWN;
-        }
-    }
-    // init obs and start rl loop
-    else if(control.control_state  == STATE_RL_INIT)
-    {
-        if(getup_percent == 1)
-        {
-            control.control_state  = STATE_RL_RUNNING;
-            this->InitObservations();
-            this->InitOutputs();
-            printf("\nstart rl loop\n");
-            loop_rl->start();
-        }
-    }
-    // rl loop
-    else if(control.control_state  == STATE_RL_RUNNING)
-    {
-        for(int i = 0; i < params.num_of_dofs; ++i)
-        {
-            // CyberdogCmd.q_des[i] = 0;
-            cyberdogCmd.q_des[i] = output_dof_pos[0][command_mapping[i]].item<double>();
-            cyberdogCmd.qd_des[i] = 0;
-            // CyberdogCmd.kp_des[i] = params.stiffness;
-            // CyberdogCmd.kd_des[i] = params.damping;
-            cyberdogCmd.kp_des[i] = this->params.rl_kp[0][i].item<double>();
-            cyberdogCmd.kd_des[i] = this->params.rl_kd[0][i].item<double>();
-            // CyberdogCmd.tau_des[i] = output_torques[0][dof_mapping[i]].item<double>();
-            cyberdogCmd.tau_des[i] = 0;
-        }
-        if(control.control_state == STATE_POS_GETDOWN)
-        {
-            control.control_state = STATE_WAITING;
-            getdown_percent = 0.0;
-            for(int i = 0; i < params.num_of_dofs; ++i)
-            {
-                now_pos[i] = cyberdogData.q[i];
-            }
-            control.control_state  = STATE_POS_GETDOWN;
-        }
-    }
-    // get down (position control)
-    else if(control.control_state  == STATE_POS_GETDOWN)
-    {
-        if(getdown_percent != 1)
-        {
-            getdown_percent += 1 / 1000.0;
-            getdown_percent = getdown_percent > 1 ? 1 : getdown_percent;
-            for(int i = 0; i < params.num_of_dofs; ++i)
-            {
-                cyberdogCmd.q_des[i] = (1 - getdown_percent) * now_pos[i] + getdown_percent * start_pos[i];
-                cyberdogCmd.qd_des[i] = 0;
-                cyberdogCmd.kp_des[i] = 200;
-                cyberdogCmd.kd_des[i] = 10;
-                cyberdogCmd.tau_des[i] = 0;
-            }
-            printf("getting down %.3f%%\r", getdown_percent*100.0);
-        }
-        if(getdown_percent == 1)
-        {
-            control.control_state  = STATE_WAITING;
-            this->InitObservations();
-            this->InitOutputs();
-            printf("\nstop rl loop\n");
-            loop_rl->shutdown();
-        }
-    }
     // if((int)this->unitree_joy.btn.components.R2 == 1)
     // {keyboard
     //     this->control.control_state = STATE_POS_GETUP;
