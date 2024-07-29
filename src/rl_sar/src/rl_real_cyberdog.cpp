@@ -1,13 +1,13 @@
 #include "../include/rl_real_cyberdog.hpp"
 
 // #define PLOT
- #define CSV_LOGGER
+ // #define CSV_LOGGER
 
 RL_Real rl_sar;
 
-RL_Real::RL_Real() : CustomInterface(500.0)
+RL_Real::RL_Real() : CustomInterface(500)
 {
-    torch::autograd::GradMode::set_enabled(false);
+    //torch::autograd::GradMode::set_enabled(false);
     // read params from yaml
     this->robot_name = "a1"; //"Cyberdog";
     this->ReadYaml(this->robot_name);
@@ -30,9 +30,10 @@ RL_Real::RL_Real() : CustomInterface(500.0)
     // loop
     this->loop_keyboard = std::make_shared<LoopFunc>("loop_keyboard", 0.05, std::bind(&RL_Real::KeyboardInterface, this));
     this->loop_control  = std::make_shared<LoopFunc>("loop_control", 0.002, std::bind(&RL_Real::RobotControl, this));
-    this->loop_rl = std::make_shared<LoopFunc>("loop_rl", 0.02, std::bind(&RL_Real::RunModel, this));
+    this->loop_rl = std::make_shared<LoopFunc>("loop_rl",  this->params.dt * this->params.decimation, std::bind(&RL_Real::RunModel, this));
     this->loop_keyboard->start();
     this->loop_control->start();
+    this->loop_rl->start();
     //this->loop_rl->start();
     
 
@@ -87,7 +88,7 @@ void RL_Real::GetState(RobotState<double> *state)
     state->imu.quaternion[2] = this->cyberdogData.quat[0]; // z
     for(int i = 0; i < 3; ++i)
     {
-        state->imu.gyroscope[i] = this->cyberdogData.acc[i];
+        state->imu.gyroscope[i] = this->cyberdogData.rpy[i];
     }
     for(int i = 0; i < this->params.num_of_dofs; ++i)
     {
@@ -95,6 +96,12 @@ void RL_Real::GetState(RobotState<double> *state)
         state->motor_state.dq[i] = this->cyberdogData.qd[state_mapping[i]];
         state->motor_state.tauEst[i] = this->cyberdogData.tau[state_mapping[i]];
     }
+}
+
+void RL_Real::UserCode()
+{
+	cyberdogData = robot_data;
+	motor_cmd = cyberdogCmd;
 }
 
 void RL_Real::SetCommand(const RobotCommand<double> *command)
@@ -112,11 +119,6 @@ void RL_Real::SetCommand(const RobotCommand<double> *command)
 
 }
 
-void RL_Real::UserCode()
-{
-	cyberdogData = robot_data;
-	motor_cmd = cyberdogCmd;
-}
 
 void RL_Real::RobotControl()
 {
@@ -132,7 +134,7 @@ void RL_Real::RunModel()
     if(this->running_state == STATE_RL_RUNNING)
     {
         this->obs.ang_vel = torch::tensor(this->robot_state.imu.gyroscope).unsqueeze(0);
-        this->obs.commands = torch::tensor({{control.x, control.y, control.yaw}});
+        this->obs.commands = torch::tensor({{this->control.x, this->control.y, this->control.yaw}});
         this->obs.base_quat = torch::tensor(this->robot_state.imu.quaternion).unsqueeze(0);
         this->obs.dof_pos = torch::tensor(this->robot_state.motor_state.q).narrow(0, 0, this->params.num_of_dofs).unsqueeze(0);
         this->obs.dof_vel = torch::tensor(this->robot_state.motor_state.dq).narrow(0, 0, this->params.num_of_dofs).unsqueeze(0);
@@ -181,6 +183,7 @@ torch::Tensor RL_Real::Forward()
     torch::Tensor clamped_obs = this->ComputeObservation();
 
     this->history_obs_buf.insert(clamped_obs);
+    this->history_obs = this->history_obs_buf.get_obs_vec({0, 1, 2, 3, 4, 5});
 
     torch::Tensor actions = this->model.forward({this->history_obs}).toTensor();
 

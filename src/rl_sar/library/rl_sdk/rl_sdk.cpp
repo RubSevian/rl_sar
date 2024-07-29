@@ -148,6 +148,7 @@ void RL::StateController(const RobotState<double> *state, RobotCommand<double> *
             this->InitOutputs();
             this->InitControl();
             this->running_state = STATE_RL_RUNNING;
+            //this->loop_rl->start(); //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Cyberdog~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~//
             std::cout << std::endl << LOGGER::INFO << "Switching to STATE_RL_RUNNING" << std::endl;
         }
     }
@@ -209,6 +210,7 @@ void RL::StateController(const RobotState<double> *state, RobotCommand<double> *
             this->InitOutputs();
             this->InitControl();
             this->running_state = STATE_WAITING;
+            //this->loop_rl->shutdown();//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Cyberdog~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~//
             std::cout << std::endl << LOGGER::INFO << "Switching to STATE_WAITING" << std::endl;
         }
     }

@@ -17,13 +17,13 @@ using CyberdogData = Robot_Data;
 using CyberdogCmd = Motor_Cmd;
 
 
-class RL_Real : public RL,CustomInterface
+class RL_Real : public RL,private CustomInterface
 {
 public:
     RL_Real();
     ~RL_Real();
 private:
-    // rl functions
+// rl functions
     torch::Tensor Forward() override;
     torch::Tensor ComputeObservation() override;
     void GetState(RobotState<double> *state) override;
@@ -34,6 +34,7 @@ private:
     // history buffer
     ObservationBuffer history_obs_buf;
     torch::Tensor history_obs;
+
     CyberdogData cyberdogData;
 	CyberdogCmd cyberdogCmd;
     void UserCode();
