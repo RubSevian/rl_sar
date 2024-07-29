@@ -82,13 +82,14 @@ void RL_Real::GetState(RobotState<double> *state)
     //     this->control.control_state = STATE_POS_GETDOWN;
     // }
 
+    //-------NEED_TEST---------//
     state->imu.quaternion[3] = this->cyberdogData.quat[1]; // w
     state->imu.quaternion[0] = this->cyberdogData.quat[2]; // x
     state->imu.quaternion[1] = this->cyberdogData.quat[3]; // y
     state->imu.quaternion[2] = this->cyberdogData.quat[0]; // z
     for(int i = 0; i < 3; ++i)
     {
-        state->imu.gyroscope[i] = this->cyberdogData.rpy[i];
+        state->imu.gyroscope[i] = this->cyberdogData.omega[i];
     }
     for(int i = 0; i < this->params.num_of_dofs; ++i)
     {

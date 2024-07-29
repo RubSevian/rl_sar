@@ -46,10 +46,10 @@ private:
     std::shared_ptr<LoopFunc> loop_plot;
 
 
-    float getup_percent = 0.0;
-    float getdown_percent = 0.0;
-    float start_pos[12];
-	float now_pos[12];
+   // float getup_percent = 0.0;
+    //float getdown_percent = 0.0;
+    //float start_pos[12];
+	//float now_pos[12];
 
     // int control_state = STATE_WAITING;
 
