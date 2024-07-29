@@ -117,3 +117,4 @@ gr1t2:
                     0.0, 0.0, -0.2618, 0.5236, -0.2618]
   joint_controller_names: ["l_hip_roll_controller", "l_hip_yaw_controller", "l_hip_pitch_controller", "l_knee_pitch_controller", "l_ankle_pitch_controller", 
                            "r_hip_roll_controller", "r_hip_yaw_controller", "r_hip_pitch_controller", "r_knee_pitch_controller", "r_ankle_pitch_controller"]
+

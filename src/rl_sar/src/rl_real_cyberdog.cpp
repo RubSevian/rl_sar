@@ -1,21 +1,21 @@
-#include "../include/rl_real_a1.hpp"
+#include "../include/rl_real_cyberdog.hpp"
 
 // #define PLOT
-// #define CSV_LOGGER
+ // #define CSV_LOGGER
 
 RL_Real rl_sar;
 
-RL_Real::RL_Real() : unitree_safe(UNITREE_LEGGED_SDK::LeggedType::A1), unitree_udp(UNITREE_LEGGED_SDK::LOWLEVEL)
+RL_Real::RL_Real() : CustomInterface(500)
 {
-    
+    //torch::autograd::GradMode::set_enabled(false);
     // read params from yaml
-    this->robot_name = "a1";
+    this->robot_name = "a1"; //"Cyberdog";
     this->ReadYaml(this->robot_name);
 
     // history
     this->history_obs_buf = ObservationBuffer(1, this->params.num_observations, 6);
 
-    this->unitree_udp.InitCmdData(this->unitree_low_command);
+    
 
     // init
     torch::autograd::GradMode::set_enabled(false);
@@ -28,16 +28,13 @@ RL_Real::RL_Real() : unitree_safe(UNITREE_LEGGED_SDK::LeggedType::A1), unitree_u
     this->model = torch::jit::load(model_path);
 
     // loop
-    this->loop_udpSend  = std::make_shared<LoopFunc>("loop_udpSend" , 0.002, std::bind(&RL_Real::UDPSend, this), 3);
-    this->loop_udpRecv  = std::make_shared<LoopFunc>("loop_udpRecv" , 0.002, std::bind(&RL_Real::UDPRecv, this), 3);
     this->loop_keyboard = std::make_shared<LoopFunc>("loop_keyboard", 0.05, std::bind(&RL_Real::KeyboardInterface, this));
-    this->loop_control  = std::make_shared<LoopFunc>("loop_control", this->params.dt, std::bind(&RL_Real::RobotControl, this));
-    this->loop_rl = std::make_shared<LoopFunc>("loop_rl", this->params.dt * this->params.decimation, std::bind(&RL_Real::RunModel, this));
-    this->loop_udpSend->start();
-    this->loop_udpRecv->start();
+    this->loop_control  = std::make_shared<LoopFunc>("loop_control", 0.002, std::bind(&RL_Real::RobotControl, this));
+    this->loop_rl = std::make_shared<LoopFunc>("loop_rl",  this->params.dt * this->params.decimation, std::bind(&RL_Real::RunModel, this));
     this->loop_keyboard->start();
     this->loop_control->start();
     this->loop_rl->start();
+    //this->loop_rl->start();
     
 
 #ifdef PLOT
@@ -49,6 +46,7 @@ RL_Real::RL_Real() : unitree_safe(UNITREE_LEGGED_SDK::LeggedType::A1), unitree_u
     this->loop_plot    = std::make_shared<LoopFunc>("loop_plot"   , 0.002,    std::bind(&RL_Real::Plot,         this));
     this->loop_plot->start();
 #endif
+
 #ifdef CSV_LOGGER
     this->CSVInit(this->robot_name);
 #endif
@@ -56,8 +54,6 @@ RL_Real::RL_Real() : unitree_safe(UNITREE_LEGGED_SDK::LeggedType::A1), unitree_u
 
 RL_Real::~RL_Real()
 {
-    this->loop_udpSend->shutdown();
-    this->loop_udpRecv->shutdown();
     this->loop_keyboard->shutdown();
     this->loop_control->shutdown();
     this->loop_rl->shutdown();
@@ -67,56 +63,63 @@ RL_Real::~RL_Real()
     std::cout << LOGGER::INFO << "RL_Real exit" << std::endl;
 }
 
+//void RL::KeyboardInterface(){}
+
+
 void RL_Real::GetState(RobotState<double> *state)
 {
-    this->unitree_udp.GetRecv(this->unitree_low_state);
-    memcpy(&this->unitree_joy, this->unitree_low_state.wirelessRemote, 40);
 
-    if((int)this->unitree_joy.btn.components.R2 == 1)
-    {
-        this->control.control_state = STATE_POS_GETUP;
-    }
-    else if((int)this->unitree_joy.btn.components.R1 == 1)
-    {
-        this->control.control_state = STATE_RL_INIT;
-    }
-    else if((int)this->unitree_joy.btn.components.L2 == 1)
-    {
-        this->control.control_state = STATE_POS_GETDOWN;
-    }
+    // if((int)this->unitree_joy.btn.components.R2 == 1)
+    // {keyboard
+    //     this->control.control_state = STATE_POS_GETUP;
+    // }
+    // else if((int)this->unitree_joy.btn.components.R1 == 1)
+    // {
+    //     this->control.control_state = STATE_RL_INIT;
+    // }
+    // else if((int)this->unitree_joy.btn.components.L2 == 1)
+    // {
+    //     this->control.control_state = STATE_POS_GETDOWN;
+    // }
 
-    state->imu.quaternion[3] = this->unitree_low_state.imu.quaternion[0]; // w
-    state->imu.quaternion[0] = this->unitree_low_state.imu.quaternion[1]; // x
-    state->imu.quaternion[1] = this->unitree_low_state.imu.quaternion[2]; // y
-    state->imu.quaternion[2] = this->unitree_low_state.imu.quaternion[3]; // z
+    //-------NEED_TEST---------//
+    state->imu.quaternion[3] = this->cyberdogData.quat[1]; // w
+    state->imu.quaternion[0] = this->cyberdogData.quat[2]; // x
+    state->imu.quaternion[1] = this->cyberdogData.quat[3]; // y
+    state->imu.quaternion[2] = this->cyberdogData.quat[0]; // z
     for(int i = 0; i < 3; ++i)
     {
-        state->imu.gyroscope[i] = this->unitree_low_state.imu.gyroscope[i];
+        state->imu.gyroscope[i] = this->cyberdogData.omega[i];
     }
     for(int i = 0; i < this->params.num_of_dofs; ++i)
     {
-        state->motor_state.q[i] = this->unitree_low_state.motorState[state_mapping[i]].q;
-        state->motor_state.dq[i] = this->unitree_low_state.motorState[state_mapping[i]].dq;
-        state->motor_state.tauEst[i] = this->unitree_low_state.motorState[state_mapping[i]].tauEst;
+        state->motor_state.q[i] = this->cyberdogData.q[state_mapping[i]];
+        state->motor_state.dq[i] = this->cyberdogData.qd[state_mapping[i]];
+        state->motor_state.tauEst[i] = this->cyberdogData.tau[state_mapping[i]];
     }
+}
+
+void RL_Real::UserCode()
+{
+	cyberdogData = robot_data;
+	motor_cmd = cyberdogCmd;
 }
 
 void RL_Real::SetCommand(const RobotCommand<double> *command)
 {
     for(int i = 0; i < this->params.num_of_dofs; ++i)
     {
-        this->unitree_low_command.motorCmd[i].mode = 0x0A;
-        this->unitree_low_command.motorCmd[i].q = command->motor_command.q[command_mapping[i]];
-        this->unitree_low_command.motorCmd[i].dq = command->motor_command.dq[command_mapping[i]];
-        this->unitree_low_command.motorCmd[i].Kp = command->motor_command.kp[command_mapping[i]];
-        this->unitree_low_command.motorCmd[i].Kd = command->motor_command.kd[command_mapping[i]];
-        this->unitree_low_command.motorCmd[i].tau = command->motor_command.tau[command_mapping[i]];
+        
+        this->cyberdogCmd.q_des[i] = command->motor_command.q[command_mapping[i]];
+        this->cyberdogCmd.qd_des[i] = command->motor_command.dq[command_mapping[i]];
+        this->cyberdogCmd.kp_des[i] = command->motor_command.kp[command_mapping[i]];
+        this->cyberdogCmd.kd_des[i] = command->motor_command.kd[command_mapping[i]];
+        this->cyberdogCmd.tau_des[i] = command->motor_command.tau[command_mapping[i]];
     }
 
-    this->unitree_safe.PowerProtect(this->unitree_low_command, this->unitree_low_state, 6);
-    // this->unitree_safe.PositionProtect(this->unitree_low_command, this->unitree_low_state);
-    this->unitree_udp.SetSend(this->unitree_low_command);
+
 }
+
 
 void RL_Real::RobotControl()
 {
@@ -132,7 +135,7 @@ void RL_Real::RunModel()
     if(this->running_state == STATE_RL_RUNNING)
     {
         this->obs.ang_vel = torch::tensor(this->robot_state.imu.gyroscope).unsqueeze(0);
-        this->obs.commands = torch::tensor({{this->unitree_joy.ly, -this->unitree_joy.rx, -this->unitree_joy.lx}});
+        this->obs.commands = torch::tensor({{this->control.x, this->control.y, this->control.yaw}});
         this->obs.base_quat = torch::tensor(this->robot_state.imu.quaternion).unsqueeze(0);
         this->obs.dof_pos = torch::tensor(this->robot_state.motor_state.q).narrow(0, 0, this->params.num_of_dofs).unsqueeze(0);
         this->obs.dof_vel = torch::tensor(this->robot_state.motor_state.dq).narrow(0, 0, this->params.num_of_dofs).unsqueeze(0);
@@ -200,8 +203,8 @@ void RL_Real::Plot()
     {
         this->plot_real_joint_pos[i].erase(this->plot_real_joint_pos[i].begin());
         this->plot_target_joint_pos[i].erase(this->plot_target_joint_pos[i].begin());
-        this->plot_real_joint_pos[i].push_back(this->unitree_low_state.motorState[i].q);
-        this->plot_target_joint_pos[i].push_back(this->unitree_low_command.motorCmd[i].q);
+        this->plot_real_joint_pos[i].push_back(this->cyberdogData.q[i]);
+        this->plot_target_joint_pos[i].push_back(this->cyberdogCmd.q_des[i]);
         plt::subplot(4, 3, i + 1);
         plt::named_plot("_real_joint_pos", this->plot_t, this->plot_real_joint_pos[i], "r");
         plt::named_plot("_target_joint_pos", this->plot_t, this->plot_target_joint_pos[i], "b");
@@ -213,6 +216,9 @@ void RL_Real::Plot()
 
 void signalHandler(int signum)
 {
+    system("ssh root@192.168.55.233 \"ps | grep -E 'manager|ctrl|imu_online' | grep -v grep | awk '{print \\$1}' | xargs kill -9\"");
+    system("ssh root@192.168.55.233 \"export LD_LIBRARY_PATH=/mnt/UDISK/robot-software/build;/mnt/UDISK/manager /mnt/UDISK/ >> /mnt/UDISK/manager_log/manager.log 2>&1 &\"");
+
     exit(0);
 }
 

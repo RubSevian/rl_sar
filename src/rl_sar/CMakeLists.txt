@@ -45,6 +45,9 @@ include_directories(library/unitree_legged_sdk_3.2/include)
 link_directories(library/unitree_legged_sdk_3.2/lib)
 set(EXTRA_LIBS -pthread libunitree_legged_sdk_amd64.so lcm)
 
+add_subdirectory(library/cyberdog_motor_sdk)
+include_directories(library/cyberdog_motor_sdk/include)
+
 include_directories(
     include
     ${catkin_INCLUDE_DIRS}
@@ -53,6 +56,7 @@ include_directories(
     library/observation_buffer
     library/rl_sdk
     library/loop
+
 )
 
 add_library(rl_sdk library/rl_sdk/rl_sdk.cpp)
@@ -79,6 +83,12 @@ add_executable(rl_real_a1 src/rl_real_a1.cpp )
 target_link_libraries(rl_real_a1
   ${catkin_LIBRARIES} ${EXTRA_LIBS} 
   rl_sdk observation_buffer yaml-cpp
+)
+
+add_executable(rl_real_cyberdog src/rl_real_cyberdog.cpp )
+target_link_libraries(rl_real_cyberdog
+  ${catkin_LIBRARIES} ${EXTRA_LIBS} "${TORCH_LIBRARIES}"
+  rl_sdk observation_buffer cyberdog_motor_sdk yaml-cpp
 )
 
 catkin_install_python(PROGRAMS
