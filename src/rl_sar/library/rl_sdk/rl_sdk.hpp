@@ -61,7 +61,7 @@ enum STATE
     STATE_TOGGLE_SIMULATION,
 };
 
-struct Control
+struct Control1
 {
     STATE control_state;
     double x = 0.0;
@@ -150,7 +150,7 @@ public:
     void CSVLogger(torch::Tensor torque, torch::Tensor tau_est, torch::Tensor joint_pos, torch::Tensor joint_pos_target, torch::Tensor joint_vel);
 
     // control
-    Control control;
+    Control1 control;
     void KeyboardInterface();
 
     // others

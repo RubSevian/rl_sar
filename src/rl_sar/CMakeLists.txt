@@ -39,6 +39,9 @@ catkin_package(
 
 link_directories(/usr/local/lib)
 include_directories(${YAML_CPP_INCLUDE_DIR})
+#Cyberdog
+add_subdirectory(library/cyberdog_motor_sdk)
+include_directories(library/cyberdog_motor_sdk/include)
 
 # Unitree A1
 include_directories(library/unitree_legged_sdk_3.2/include)
@@ -80,6 +83,12 @@ add_executable(rl_sim src/rl_sim.cpp )
 target_link_libraries(rl_sim
   ${catkin_LIBRARIES} -pthread
   rl_sdk observation_buffer yaml-cpp
+)
+
+add_executable(rl_real_cyberdog.cpp src/rl_real_cyberdog.cpp )
+target_link_libraries(rl_real_cyberdog.cpp
+${catkin_LIBRARIES} ${EXTRA_LIBS} "${TORCH_LIBRARIES}"
+rl_sdk observation_buffer cyberdog_motor_sdk yaml-cpp
 )
 
 add_executable(rl_real_a1 src/rl_real_a1.cpp )
